@@ -13,13 +13,13 @@ from datetime import datetime
 from typing import Optional
 
 try:
+    import requests
     from bs4 import BeautifulSoup
-    from playwright.sync_api import sync_playwright
 except ImportError:
-    print("Missing dependencies. Run: pip install beautifulsoup4 playwright && playwright install firefox")
+    print("Missing dependencies. Run: pip install requests beautifulsoup4")
     sys.exit(1)
 
-DEBUG = True
+DEBUG = False
 
 HISTORY_FILE = os.path.join(os.path.dirname(__file__), "price_history.json")
 PRODUCTS_FILE = os.path.join(os.path.dirname(__file__), "products_to_track.txt")
@@ -30,63 +30,47 @@ def log(msg: str):
         print(f"[debug] {msg}")
 
 
+HEADERS = {
+    "User-Agent": (
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+        "AppleWebKit/537.36 (KHTML, like Gecko) "
+        "Chrome/120.0.0.0 Safari/537.36"
+    ),
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
+    "Accept-Language": "en-IN,en;q=0.9",
+    "Accept-Encoding": "gzip, deflate, br",
+    "Connection": "keep-alive",
+    "Upgrade-Insecure-Requests": "1",
+}
+
+
 def fetch_page(url: str) -> str:
-    log(f"Starting Playwright with Firefox (headless)...")
-    with sync_playwright() as p:
-        log(f"Launching browser...")
-        try:
-            browser = p.firefox.launch(headless=True)
-        except Exception as e:
-            log(f"ERROR: Browser launch failed: {e}")
-            raise
-        log(f"Browser launched successfully")
+    log(f"Fetching {url} via requests...")
+    session = requests.Session()
+    try:
+        response = session.get(url, headers=HEADERS, timeout=20)
+        log(f"Response status: {response.status_code}")
+        log(f"Response URL: {response.url}")
+        response.raise_for_status()
+    except Exception as e:
+        log(f"ERROR: Request failed: {e}")
+        raise
 
-        context = browser.new_context(
-            viewport={"width": 1920, "height": 1080},
-            locale="en-IN",
-        )
-        page = context.new_page()
+    html = response.text
+    log(f"HTML length: {len(html)}")
 
-        response = None
-        try:
-            log(f"Navigating to {url} ...")
-            response = page.goto(url, wait_until="domcontentloaded", timeout=30000)
-        except Exception as e:
-            log(f"ERROR: Navigation failed: {e}")
-            # Dump whatever HTML we got before the error
-            html = page.content()
-            log(f"Partial HTML length: {len(html)}")
-            log(f"Partial HTML (first 2000 chars):\n{html[:2000]}")
-            context.close()
-            browser.close()
-            raise
+    has_pdp_data = "pdpData" in html
+    has_ld_json = "application/ld+json" in html
+    has_price_key = '"price"' in html or '"mrp"' in html
+    log(f"Has pdpData: {has_pdp_data}")
+    log(f"Has ld+json: {has_ld_json}")
+    log(f"Has price/mrp keys: {has_price_key}")
 
-        status = response.status if response else "no response"
-        log(f"Response status: {status}")
-        log(f"Response URL: {response.url if response else 'N/A'}")
+    if not (has_pdp_data or has_ld_json or has_price_key):
+        log(f"WARNING: No price data found. First 3000 chars of HTML:")
+        print(html[:3000])
 
-        log(f"Waiting 3s for JS to render...")
-        page.wait_for_timeout(3000)
-
-        html = page.content()
-        log(f"Page HTML length: {len(html)}")
-        log(f"Page title: {page.title()}")
-
-        # Log whether price-related data is present in the HTML
-        has_pdp_data = "pdpData" in html
-        has_ld_json = "application/ld+json" in html
-        has_price_key = '"price"' in html or '"mrp"' in html
-        log(f"Has pdpData: {has_pdp_data}")
-        log(f"Has ld+json: {has_ld_json}")
-        log(f"Has price/mrp keys: {has_price_key}")
-
-        if not (has_pdp_data or has_ld_json or has_price_key):
-            log(f"WARNING: No price data found. First 3000 chars of HTML:")
-            print(html[:3000])
-
-        context.close()
-        browser.close()
-        return html
+    return html
 
 
 def extract_price(html: str) -> Optional[dict]:
