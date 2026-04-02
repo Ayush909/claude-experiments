@@ -24,6 +24,8 @@ This project automates that, one not need to go to each myntra page and see the 
 python price_tracer.py <myntra-product-url>
 
 # Track all products in products_to_track.txt
+
+
 python price_tracer.py
 
 # Get your Telegram chat ID
@@ -37,7 +39,7 @@ Set the `TELEGRAM_BOT_TOKEN` environment variable to enable Telegram notificatio
 
 ## Demo
 
-https://github.com/Ayush909/claude-experiments/raw/main/demos/tracer.mp4
+https://github.com/user-attachments/assets/85faed51-bda5-4da3-bcbf-7f659e4fcb6f
 
 ## Screenshots
 
