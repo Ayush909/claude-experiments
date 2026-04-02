@@ -41,9 +41,9 @@ https://github.com/Ayush909/claude-experiments/raw/main/demos/tracer.mp4
 
 ## Screenshots
 
-![Screenshot 1](demos/tracer_1.jpeg)
+<img src="demos/tracer_1.jpeg" width="400">
 
-![Screenshot 2](demos/tracer_2.jpeg)
+<img src="demos/tracer_2.jpeg" width="400">
 
 ## Limitations
 
