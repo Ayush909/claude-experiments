@@ -13,30 +13,34 @@ from datetime import datetime
 from typing import Optional
 
 try:
-    from playwright.sync_api import sync_playwright
+    import requests
     from bs4 import BeautifulSoup
 except ImportError:
-    print("Missing dependencies. Run: pip install playwright beautifulsoup4 && playwright install chromium")
+    print("Missing dependencies. Run: pip install requests beautifulsoup4")
     sys.exit(1)
 
 HISTORY_FILE = os.path.join(os.path.dirname(__file__), "price_history.json")
 PRODUCTS_FILE = os.path.join(os.path.dirname(__file__), "products_to_track.txt")
 
+HEADERS = {
+    "User-Agent": (
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+        "AppleWebKit/537.36 (KHTML, like Gecko) "
+        "Chrome/120.0.0.0 Safari/537.36"
+    ),
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
+    "Accept-Language": "en-IN,en;q=0.9",
+    "Accept-Encoding": "gzip, deflate, br",
+    "Connection": "keep-alive",
+    "Upgrade-Insecure-Requests": "1",
+}
+
 
 def fetch_page(url: str) -> str:
-    with sync_playwright() as p:
-        browser = p.chromium.launch(headless=True)
-        page = browser.new_page(
-            user_agent=(
-                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-                "AppleWebKit/537.36 (KHTML, like Gecko) "
-                "Chrome/120.0.0.0 Safari/537.36"
-            )
-        )
-        page.goto(url, wait_until="networkidle", timeout=30000)
-        html = page.content()
-        browser.close()
-        return html
+    session = requests.Session()
+    response = session.get(url, headers=HEADERS, timeout=20)
+    response.raise_for_status()
+    return response.text
 
 
 def extract_price(html: str) -> Optional[dict]:

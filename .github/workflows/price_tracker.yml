@@ -22,7 +22,7 @@ jobs:
           python-version: "3.11"
 
       - name: Install dependencies
-        run: pip install playwright beautifulsoup4 && playwright install --with-deps chromium
+        run: pip install requests beautifulsoup4
 
       - name: Run price tracker
         run: python price_tracer.py
