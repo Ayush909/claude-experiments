@@ -10,6 +10,7 @@ import json
 import sys
 import os
 from datetime import datetime
+from typing import Optional
 
 try:
     import requests
@@ -19,6 +20,7 @@ except ImportError:
     sys.exit(1)
 
 HISTORY_FILE = os.path.join(os.path.dirname(__file__), "price_history.json")
+PRODUCTS_FILE = os.path.join(os.path.dirname(__file__), "products_to_track.txt")
 
 HEADERS = {
     "User-Agent": (
@@ -41,7 +43,7 @@ def fetch_page(url: str) -> str:
     return response.text
 
 
-def extract_price(html: str) -> dict | None:
+def extract_price(html: str) -> Optional[dict]:
     """
     Tries multiple strategies to extract price from Myntra's HTML.
     Returns a dict with 'mrp', 'selling_price', and 'discount_percent'.
@@ -172,11 +174,28 @@ def check_price(url: str):
 
 
 if __name__ == "__main__":
-    if len(sys.argv) < 2:
+    if len(sys.argv) > 1:
+        # Track a single URL passed as argument
+        check_price(sys.argv[1])
+    elif os.path.exists(PRODUCTS_FILE):
+        # Track all URLs from products_to_track.txt
+        with open(PRODUCTS_FILE) as f:
+            urls = [line.strip() for line in f if line.strip()]
+
+        if not urls:
+            print(f"No URLs found in {PRODUCTS_FILE}")
+            sys.exit(1)
+
+        print(f"Tracking {len(urls)} product(s)...\n")
+        for i, url in enumerate(urls, 1):
+            print(f"[{i}/{len(urls)}]")
+            check_price(url)
+            print()
+    else:
         print("Usage: python price_tracer.py <myntra-product-url>")
+        print()
+        print("Or create products_to_track.txt with one URL per line to track multiple products.")
         print()
         print("Example:")
         print("  python price_tracer.py 'https://www.myntra.com/mailers/shoes/puma/puma-unisex-future-rider-displaced-sneakers/24093010/buy'")
         sys.exit(1)
-
-    check_price(sys.argv[1])
