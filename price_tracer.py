@@ -20,14 +20,121 @@ except ImportError:
     sys.exit(1)
 
 DEBUG = False
+TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN")
+TELEGRAM_CHAT_ID = 645317853
 
 HISTORY_FILE = os.path.join(os.path.dirname(__file__), "price_history.json")
 PRODUCTS_FILE = os.path.join(os.path.dirname(__file__), "products_to_track.txt")
+OFFSET_FILE = os.path.join(os.path.dirname(__file__), "telegram_offset.txt")
 
 
 def log(msg: str):
     if DEBUG:
         print(f"[debug] {msg}")
+
+
+def telegram_get_chat_id():
+    """Fetch chat ID from the most recent message sent to the bot."""
+    if not TELEGRAM_BOT_TOKEN:
+        print("TELEGRAM_BOT_TOKEN not set.")
+        return None
+    resp = requests.get(f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/getUpdates")
+    data = resp.json()
+    if not data.get("ok") or not data.get("result"):
+        print("No messages found. Send a message to the bot first, then retry.")
+        return None
+    chat_id = data["result"][-1]["message"]["chat"]["id"]
+    print(f"Chat ID: {chat_id}")
+    return chat_id
+
+
+def telegram_send(text: str):
+    """Send a message via Telegram bot. Silently skips if not configured."""
+    if not TELEGRAM_BOT_TOKEN:
+        return
+    resp = requests.post(
+        f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage",
+        json={"chat_id": TELEGRAM_CHAT_ID, "text": text, "parse_mode": "Markdown"},
+    )
+    if resp.ok:
+        log("Telegram message sent.")
+    else:
+        print(f"Telegram send failed: {resp.text}")
+
+
+def telegram_reply(chat_id, text: str):
+    """Reply to a specific chat."""
+    if not TELEGRAM_BOT_TOKEN:
+        return
+    requests.post(
+        f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage",
+        json={"chat_id": chat_id, "text": text},
+    )
+
+
+def load_offset() -> int:
+    if os.path.exists(OFFSET_FILE):
+        with open(OFFSET_FILE) as f:
+            return int(f.read().strip())
+    return 0
+
+
+def save_offset(offset: int):
+    with open(OFFSET_FILE, "w") as f:
+        f.write(str(offset))
+
+
+def check_telegram_messages():
+    """Check for new Myntra URLs sent to the bot and add them to tracking."""
+    if not TELEGRAM_BOT_TOKEN:
+        print("TELEGRAM_BOT_TOKEN not set.")
+        return
+
+    last_offset = load_offset()
+    params = {"offset": last_offset + 1} if last_offset else {}
+    resp = requests.get(
+        f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/getUpdates",
+        params=params,
+    )
+    data = resp.json()
+
+    if not data.get("ok") or not data.get("result"):
+        print("No new messages.")
+        return
+
+    # Load existing tracked URLs
+    existing_urls = set()
+    if os.path.exists(PRODUCTS_FILE):
+        with open(PRODUCTS_FILE) as f:
+            existing_urls = {line.strip() for line in f if line.strip()}
+
+    myntra_pattern = re.compile(r'https?://www\.myntra\.com/\S+')
+
+    for update in data["result"]:
+        update_id = update["update_id"]
+        message = update.get("message", {})
+        text = message.get("text", "")
+        chat_id = message.get("chat", {}).get("id")
+
+        urls = myntra_pattern.findall(text)
+
+        for url in urls:
+            if url in existing_urls:
+                print(f"Already tracking: {url}")
+                telegram_reply(chat_id, f"Already tracking:\n{url}")
+            else:
+                with open(PRODUCTS_FILE, "a") as f:
+                    f.write(f"\n{url}")
+                existing_urls.add(url)
+                print(f"Added: {url}")
+                telegram_reply(chat_id, f"✅ Added for tracking:\n{url}")
+
+        if not urls and text:
+            telegram_reply(chat_id, "Send me a Myntra product URL to start tracking its price.")
+
+        save_offset(update_id)
+
+    print(f"Processed {len(data['result'])} update(s).")
 
 
 HEADERS = {
@@ -148,7 +255,8 @@ def extract_product_name(html: str, url: str) -> str:
     return url
 
 
-def check_price(url: str):
+def check_price(url: str) -> str:
+    """Check price for a URL. Returns a summary line for Telegram."""
     print(f"Fetching: {url}\n")
 
     html = fetch_page(url)
@@ -156,8 +264,7 @@ def check_price(url: str):
 
     if not price_data:
         print("Could not extract price from the page.")
-        print("Myntra may require a browser session. Try running with Selenium/Playwright.")
-        sys.exit(1)
+        return f"❌ Could not extract price: {url}"
 
     product_name = extract_product_name(html, url)
     selling_price = price_data["selling_price"]
@@ -173,6 +280,7 @@ def check_price(url: str):
 
     history = load_history()
     prev = history.get(url)
+    change_line = ""
 
     if prev:
         prev_price = prev["selling_price"]
@@ -183,14 +291,18 @@ def check_price(url: str):
             print(f"    Was : ₹{prev_price:,}  (recorded {prev['recorded_at']})")
             print(f"    Now : ₹{selling_price:,}")
             print(f"    Drop: ₹{drop:,} ({drop_pct}% cheaper)")
+            change_line = f" 🔻 ₹{drop:,} ({drop_pct}%)"
         elif selling_price > prev_price:
             rise = selling_price - prev_price
             rise_pct = round(rise / prev_price * 100, 1)
             print(f"\nPrice went up by ₹{rise:,} ({rise_pct}%) since last check ({prev['recorded_at']}).")
+            change_line = f" 🔺 ₹{rise:,} ({rise_pct}%)"
         else:
             print(f"\nNo price change since last check ({prev['recorded_at']}).")
+            change_line = " ➖ no change"
     else:
         print("\nNo previous price on record — current price saved as baseline.")
+        change_line = " 🆕 first check"
 
     history[url] = {
         "product_name": product_name,
@@ -202,11 +314,26 @@ def check_price(url: str):
     save_history(history)
     print(f"\nHistory saved to {HISTORY_FILE}")
 
+    discount_str = f" ({discount}% off)" if discount else ""
+    return f"*{product_name}*\n₹{selling_price:,}{discount_str}{change_line}\n[View on Myntra]({url})"
+
 
 if __name__ == "__main__":
+    # Helper: fetch and print chat ID
+    if len(sys.argv) > 1 and sys.argv[1] == "--chat-id":
+        telegram_get_chat_id()
+        sys.exit(0)
+
+    # Check for new URLs from Telegram messages
+    if len(sys.argv) > 1 and sys.argv[1] == "--check-messages":
+        check_telegram_messages()
+        sys.exit(0)
+
+    summaries = []
+
     if len(sys.argv) > 1:
         # Track a single URL passed as argument
-        check_price(sys.argv[1])
+        summaries.append(check_price(sys.argv[1]))
     elif os.path.exists(PRODUCTS_FILE):
         # Track all URLs from products_to_track.txt
         with open(PRODUCTS_FILE) as f:
@@ -219,13 +346,17 @@ if __name__ == "__main__":
         print(f"Tracking {len(urls)} product(s)...\n")
         for i, url in enumerate(urls, 1):
             print(f"[{i}/{len(urls)}]")
-            check_price(url)
+            summaries.append(check_price(url))
             print()
     else:
         print("Usage: python price_tracer.py <myntra-product-url>")
+        print("       python price_tracer.py --chat-id")
         print()
         print("Or create products_to_track.txt with one URL per line to track multiple products.")
-        print()
-        print("Example:")
-        print("  python price_tracer.py 'https://www.myntra.com/mailers/shoes/puma/puma-unisex-future-rider-displaced-sneakers/24093010/buy'")
         sys.exit(1)
+
+    # Send Telegram summary
+    if summaries and TELEGRAM_BOT_TOKEN:
+        msg = f"📊 *Price Tracker Update*\n_{datetime.now().strftime('%d %b %Y, %I:%M %p')}_\n\n"
+        msg += "\n\n".join(summaries)
+        telegram_send(msg)

@@ -4,27 +4,62 @@
     "mrp": 3519,
     "selling_price": 3519,
     "discount_percent": 0,
-    "recorded_at": "2026-04-02T13:10:36"
+    "recorded_at": "2026-04-02T15:47:28"
   },
   "https://www.myntra.com/shoes/puma/puma-blktop-rider-suede-sneakers/24098356/buy": {
     "product_name": "Buy Puma Blktop Rider Suede Sneakers  - Casual Shoes for Unisex 24098356 | Myntra",
     "mrp": 5399,
     "selling_price": 5399,
     "discount_percent": 0,
-    "recorded_at": "2026-04-02T13:10:36"
+    "recorded_at": "2026-04-02T15:47:29"
   },
   "https://www.myntra.com/casual-shoes/asics/asics-gel-1130-unisex-leather-casual-sneakers/35128106/buy": {
     "product_name": "Buy ASICS Gel 1130 Unisex Leather Casual Sneakers  - Casual Shoes for Unisex 35128106 | Myntra",
     "mrp": 9999,
     "selling_price": 9999,
     "discount_percent": 0,
-    "recorded_at": "2026-04-02T13:10:37"
+    "recorded_at": "2026-04-02T15:47:29"
   },
   "https://www.myntra.com/tshirts/genzy/genzy-men-self-design-polo-collar-relaxed-fit-t-shirt/32357451/buy": {
     "product_name": "Buy Genzy Men Self Design Polo Collar Relaxed Fit T Shirt  - Tshirts for Men 32357451 | Myntra",
     "mrp": 322,
     "selling_price": 322,
     "discount_percent": 0,
-    "recorded_at": "2026-04-02T13:10:37"
+    "recorded_at": "2026-04-02T15:47:29"
+  },
+  "https://www.myntra.com/mailers/apparel-set/kisah/kisah-men-embroidered-regular-fit-mirror-work-kurta-nehru-jacket-trouser-set/30831926/buy": {
+    "product_name": "Buy KISAH Men Embroidered Regular Fit Mirror Work Kurta Nehru Jacket Trouser Set  - Kurta Sets for Men 30831926 | Myntra",
+    "mrp": 5999,
+    "selling_price": 5999,
+    "discount_percent": 0,
+    "recorded_at": "2026-04-02T15:47:30"
+  },
+  "https://www.myntra.com/mailers/topwear/louis-philippe-sport/men-slim-fit-checks-pattern-soft-handfeel-full-sleeve-casual-shirt/22260732/buy?utm_source=social_share_pdp&utm_medium=deeplink&utm_campaign=social_share_pdp_deeplink": {
+    "product_name": "Buy Men Slim Fit Checks Pattern Soft Handfeel Full Sleeve Casual Shirt  - Shirts for Men 22260732 | Myntra",
+    "mrp": 1099,
+    "selling_price": 1099,
+    "discount_percent": 0,
+    "recorded_at": "2026-04-02T15:38:03"
+  },
+  "https://www.myntra.com/mailers/topwear/louis-philippe-sport/men-slim-fit-checks-pattern-soft-handfeel-full-sleeve-casual-shirt/22260732/buy": {
+    "product_name": "Buy Men Slim Fit Checks Pattern Soft Handfeel Full Sleeve Casual Shirt  - Shirts for Men 22260732 | Myntra",
+    "mrp": 1099,
+    "selling_price": 1099,
+    "discount_percent": 0,
+    "recorded_at": "2026-04-02T15:47:30"
+  },
+  "https://www.myntra.com/mailers/apparel-set/inddus/inddus-women-floral-embroidered-regular-thread-work-kurta-with-trousers-&-with-dupatta/28877958/buy": {
+    "product_name": "Buy Inddus Women Floral Embroidered Regular Thread Work Kurta With Trousers & With Dupatta  - Kurta Sets for Women 28877958 | Myntra",
+    "mrp": 2489,
+    "selling_price": 2489,
+    "discount_percent": 0,
+    "recorded_at": "2026-04-02T15:47:31"
+  },
+  "https://www.myntra.com/mailers/watches/timex/timex-men-dial-&-leather-straps-chronograph-watch-tweg307smu01/39170885/buy?utm_source=social_share_pdp&utm_medium=deeplink&utm_campaign=social_share_pdp_deeplink": {
+    "product_name": "Buy Timex Men Dial & Leather Straps Chronograph Watch TWEG307SMU01  - Watches for Men 39170885 | Myntra",
+    "mrp": 3437,
+    "selling_price": 3437,
+    "discount_percent": 0,
+    "recorded_at": "2026-04-02T15:47:31"
   }
 }
