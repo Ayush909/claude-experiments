@@ -13,34 +13,30 @@ from datetime import datetime
 from typing import Optional
 
 try:
-    import requests
     from bs4 import BeautifulSoup
+    from playwright.sync_api import sync_playwright
 except ImportError:
-    print("Missing dependencies. Run: pip install requests beautifulsoup4")
+    print("Missing dependencies. Run: pip install beautifulsoup4 playwright && playwright install firefox")
     sys.exit(1)
 
 HISTORY_FILE = os.path.join(os.path.dirname(__file__), "price_history.json")
 PRODUCTS_FILE = os.path.join(os.path.dirname(__file__), "products_to_track.txt")
 
-HEADERS = {
-    "User-Agent": (
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-        "AppleWebKit/537.36 (KHTML, like Gecko) "
-        "Chrome/120.0.0.0 Safari/537.36"
-    ),
-    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
-    "Accept-Language": "en-IN,en;q=0.9",
-    "Accept-Encoding": "gzip, deflate, br",
-    "Connection": "keep-alive",
-    "Upgrade-Insecure-Requests": "1",
-}
-
 
 def fetch_page(url: str) -> str:
-    session = requests.Session()
-    response = session.get(url, headers=HEADERS, timeout=20)
-    response.raise_for_status()
-    return response.text
+    with sync_playwright() as p:
+        browser = p.firefox.launch(headless=True)
+        context = browser.new_context(
+            viewport={"width": 1920, "height": 1080},
+            locale="en-IN",
+        )
+        page = context.new_page()
+        page.goto(url, wait_until="domcontentloaded", timeout=30000)
+        page.wait_for_timeout(3000)
+        html = page.content()
+        context.close()
+        browser.close()
+        return html
 
 
 def extract_price(html: str) -> Optional[dict]:
