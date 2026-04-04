@@ -180,6 +180,48 @@ def fetch_page(url: str) -> str:
     return html
 
 
+WATCHED_SIZES = {
+    "shoes": ["9", "10"],   # UK Size
+    "shirts": ["M"],
+}
+
+
+def extract_sizes(html: str) -> list:
+    """Extract size availability from Myntra HTML."""
+    match = re.search(r'"sizes":\s*\[', html)
+    if not match:
+        return []
+    start = match.start() + len('"sizes":')
+    try:
+        decoder = json.JSONDecoder()
+        sizes, _ = decoder.raw_decode(html, start)
+        return sizes
+    except (json.JSONDecodeError, ValueError):
+        return []
+
+
+def check_size_availability(sizes: list, url: str) -> str:
+    """Check if watched sizes are available. Returns a summary string."""
+    if not sizes:
+        return ""
+
+    # Determine product type from URL
+    is_shoe = any(kw in url.lower() for kw in ["shoes", "sneakers", "sandals", "footwear"])
+    watched = WATCHED_SIZES["shoes"] if is_shoe else WATCHED_SIZES["shirts"]
+
+    results = []
+    for s in sizes:
+        label = s.get("label", "")
+        if label in watched:
+            available = s.get("available", False)
+            status = "✅" if available else "❌"
+            size_type = s.get("sizeType") or ""
+            display = f"{size_type} {label}".strip()
+            results.append(f"{status} {display}")
+
+    return " | ".join(results) if results else ""
+
+
 def extract_price(html: str) -> Optional[dict]:
     """
     Tries multiple strategies to extract price from Myntra's HTML.
@@ -272,11 +314,16 @@ def check_price(url: str) -> str:
     discount = price_data["discount_percent"]
     now = datetime.now().isoformat(timespec="seconds")
 
+    sizes = extract_sizes(html)
+    size_info = check_size_availability(sizes, url)
+
     print(f"Product : {product_name}")
     print(f"MRP     : ₹{mrp:,}")
     print(f"Price   : ₹{selling_price:,}")
     if discount:
         print(f"Discount: {discount}% off")
+    if size_info:
+        print(f"Sizes   : {size_info}")
 
     history = load_history()
     prev = history.get(url)
@@ -315,7 +362,8 @@ def check_price(url: str) -> str:
     print(f"\nHistory saved to {HISTORY_FILE}")
 
     discount_str = f" ({discount}% off)" if discount else ""
-    return f"*{product_name}*\n₹{selling_price:,}{discount_str}{change_line}\n[View on Myntra]({url})"
+    size_line = f"\nSizes: {size_info}" if size_info else ""
+    return f"*{product_name}*\n₹{selling_price:,}{discount_str}{change_line}{size_line}\n[View on Myntra]({url})"
 
 
 if __name__ == "__main__":
