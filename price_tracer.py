@@ -227,6 +227,99 @@ def handle_showprices(chat_id):
     telegram_send(msg)
 
 
+def route_message(chat_id, text: str):
+    """Route an incoming Telegram message to the appropriate handler."""
+    myntra_pattern = re.compile(r'https?://www\.myntra\.com/\S+')
+
+    if text.startswith("/list"):
+        handle_list(chat_id)
+    elif text.startswith("/remove"):
+        handle_remove(chat_id, text)
+    elif text.startswith("/showprices"):
+        handle_showprices(chat_id)
+    elif myntra_pattern.search(text):
+        # Add URL to tracking — reuse logic from check_telegram_messages
+        urls = myntra_pattern.findall(text)
+        existing_urls = set()
+        if os.path.exists(PRODUCTS_FILE):
+            with open(PRODUCTS_FILE) as f:
+                existing_urls = {line.strip() for line in f if line.strip()}
+
+        for url in urls:
+            if url in existing_urls:
+                telegram_reply(chat_id, f"Already tracking:\n{url}")
+            else:
+                with open(PRODUCTS_FILE, "a") as f:
+                    f.write(f"\n{url}")
+                existing_urls.add(url)
+                telegram_reply(chat_id, f"✅ Added for tracking:\n{url}")
+    else:
+        help_text = (
+            "Available commands:\n"
+            "/list — Show tracked products\n"
+            "/remove <number> — Remove a product\n"
+            "/showprices — Check all prices now\n"
+            "Or send a Myntra URL to start tracking."
+        )
+        telegram_reply(chat_id, help_text)
+
+
+def run_bot():
+    """Run the Telegram bot with long polling."""
+    if not TELEGRAM_BOT_TOKEN:
+        print("Error: TELEGRAM_BOT_TOKEN environment variable not set.")
+        sys.exit(1)
+
+    print("🤖 Price Tracer Bot started. Press Ctrl+C to stop.")
+
+    last_offset = load_offset()
+
+    while True:
+        try:
+            params = {"timeout": 30}
+            if last_offset:
+                params["offset"] = last_offset + 1
+
+            resp = requests.get(
+                f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/getUpdates",
+                params=params,
+                timeout=35,  # slightly longer than Telegram's timeout
+            )
+            data = resp.json()
+
+            if not data.get("ok") or not data.get("result"):
+                continue
+
+            for update in data["result"]:
+                update_id = update["update_id"]
+                message = update.get("message", {})
+                text = message.get("text", "")
+                chat_id = message.get("chat", {}).get("id")
+
+                if not text or not chat_id:
+                    last_offset = update_id
+                    save_offset(last_offset)
+                    continue
+
+                try:
+                    print(f"[msg] {text[:80]}")
+                    route_message(chat_id, text)
+                except Exception as e:
+                    print(f"Error handling message: {e}")
+                    telegram_reply(chat_id, "Something went wrong. Please try again.")
+
+                last_offset = update_id
+                save_offset(last_offset)
+
+        except KeyboardInterrupt:
+            print("\nBot stopped.")
+            break
+        except requests.exceptions.RequestException as e:
+            print(f"Network error: {e}. Retrying in 5s...")
+            import time
+            time.sleep(5)
+
+
 HEADERS = {
     "User-Agent": (
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
@@ -465,6 +558,11 @@ if __name__ == "__main__":
     # Check for new URLs from Telegram messages
     if len(sys.argv) > 1 and sys.argv[1] == "--check-messages":
         check_telegram_messages()
+        sys.exit(0)
+
+    # Run as long-polling bot
+    if len(sys.argv) > 1 and sys.argv[1] == "--serve":
+        run_bot()
         sys.exit(0)
 
     summaries = []
