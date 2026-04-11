@@ -166,6 +166,42 @@ def handle_list(chat_id):
     telegram_reply(chat_id, msg)
 
 
+def handle_remove(chat_id, text: str):
+    """Remove a product by its number from the tracked list."""
+    parts = text.strip().split()
+    if len(parts) < 2 or not parts[1].isdigit():
+        telegram_reply(chat_id, "Usage: /remove <number>\nUse /list to see product numbers.")
+        return
+
+    index = int(parts[1])
+
+    if not os.path.exists(PRODUCTS_FILE):
+        telegram_reply(chat_id, "No products being tracked.")
+        return
+
+    with open(PRODUCTS_FILE) as f:
+        urls = [line.strip() for line in f if line.strip()]
+
+    if index < 1 or index > len(urls):
+        telegram_reply(chat_id, f"Invalid number. Use /list to see products (1-{len(urls)}).")
+        return
+
+    removed_url = urls.pop(index - 1)
+
+    # Get product name before removing from history
+    history = load_history()
+    entry = history.pop(removed_url, None)
+    product_name = entry.get("product_name", removed_url) if entry else removed_url
+
+    # Rewrite products file
+    with open(PRODUCTS_FILE, "w") as f:
+        f.write("\n".join(urls) + ("\n" if urls else ""))
+
+    save_history(history)
+
+    telegram_reply(chat_id, f"✅ Removed: {product_name}")
+
+
 HEADERS = {
     "User-Agent": (
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
