@@ -202,6 +202,31 @@ def handle_remove(chat_id, text: str):
     telegram_reply(chat_id, f"✅ Removed: {product_name}")
 
 
+def handle_showprices(chat_id):
+    """Scrape all tracked products and send a price summary."""
+    if not os.path.exists(PRODUCTS_FILE):
+        telegram_reply(chat_id, "No products being tracked.")
+        return
+
+    with open(PRODUCTS_FILE) as f:
+        urls = [line.strip() for line in f if line.strip()]
+
+    if not urls:
+        telegram_reply(chat_id, "No products being tracked.")
+        return
+
+    telegram_reply(chat_id, f"⏳ Checking prices for {len(urls)} product(s)...")
+
+    summaries = []
+    for i, url in enumerate(urls, 1):
+        print(f"[{i}/{len(urls)}]")
+        summaries.append(check_price(url))
+
+    msg = f"📊 *Price Tracker Update*\n_{datetime.now().strftime('%d %b %Y, %I:%M %p')}_\n\n"
+    msg += "\n\n".join(summaries)
+    telegram_send(msg)
+
+
 HEADERS = {
     "User-Agent": (
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
