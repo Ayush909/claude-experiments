@@ -137,6 +137,35 @@ def check_telegram_messages():
     print(f"Processed {len(data['result'])} update(s).")
 
 
+def handle_list(chat_id):
+    """Send a numbered list of tracked products to the chat."""
+    if not os.path.exists(PRODUCTS_FILE):
+        telegram_reply(chat_id, "No products being tracked.")
+        return
+
+    with open(PRODUCTS_FILE) as f:
+        urls = [line.strip() for line in f if line.strip()]
+
+    if not urls:
+        telegram_reply(chat_id, "No products being tracked.")
+        return
+
+    history = load_history()
+    lines = []
+    for i, url in enumerate(urls, 1):
+        entry = history.get(url)
+        if entry:
+            name = entry.get("product_name", url)
+        else:
+            # Derive name from URL slug
+            parts = url.rstrip("/").split("/")
+            name = next((p.replace("-", " ").title() for p in reversed(parts) if not p.isdigit()), url)
+        lines.append(f"{i}. {name}")
+
+    msg = "📋 *Tracked Products:*\n" + "\n".join(lines)
+    telegram_reply(chat_id, msg)
+
+
 HEADERS = {
     "User-Agent": (
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
