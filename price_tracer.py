@@ -9,6 +9,7 @@ import re
 import json
 import sys
 import os
+import time
 from datetime import datetime
 from typing import Optional
 
@@ -316,7 +317,6 @@ def run_bot():
             break
         except requests.exceptions.RequestException as e:
             print(f"Network error: {e}. Retrying in 5s...")
-            import time
             time.sleep(5)
 
 
